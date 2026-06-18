@@ -200,7 +200,9 @@ uv run ruff check src tests
 uv run mypy src tests
 
 # live integration + equivalence tests (need a running Aleph + credentials):
-set -a && source ../.aleph-credentials.env && set +a
+export ALEPHCLIENT_HOST=https://your-aleph
+export ALEPHCLIENT_API_KEY=...
+export ALEPH_EXAMPLE_DIR=/path/to/source-tree   # ground-truth dir for the equivalence test
 uv run pytest -m integration -s
 ```
 
