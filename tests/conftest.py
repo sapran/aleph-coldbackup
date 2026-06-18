@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -66,3 +68,39 @@ class FakeAPI:
 @pytest.fixture
 def make_entity_fixture():
     return make_entity
+
+
+def make_doc(eid, *, content_hash=None, file_name=None, parent_id=None, schema="Document"):
+    from aleph_coldbackup.directwalk import DocRow
+
+    return DocRow(
+        id=str(eid),
+        content_hash=content_hash,
+        file_name=file_name,
+        parent_id=(str(parent_id) if parent_id is not None else None),
+        schema=schema,
+    )
+
+
+class FakeArchive:
+    """In-memory stand-in for FsArchive: maps content_hash -> bytes.
+
+    locate() returns an opaque Path whose name is the content_hash; copy() uses
+    that to find the bytes, so callers treat `src` as opaque (as the real code does).
+    """
+
+    def __init__(self, blobs: dict[str, bytes], *, missing=frozenset()):
+        self._blobs = dict(blobs)
+        self._missing = set(missing)
+
+    def locate(self, content_hash):
+        if content_hash in self._missing or content_hash not in self._blobs:
+            return None
+        return Path(f"/fake/{content_hash}")
+
+    def copy(self, src, dest, *, verify):
+        data = self._blobs[src.name]
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        sha = hashlib.sha1(data).hexdigest() if verify else None
+        return len(data), sha

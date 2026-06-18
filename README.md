@@ -4,10 +4,16 @@ Export one [Aleph](https://github.com/alephdata/aleph) investigation into a
 self-contained, **re-ingestable cold backup** — the original ingested files
 reconstructed in their folder structure, plus the full entity graph and metadata.
 
-**Client-side only.** It talks to Aleph purely over the HTTP API: all it needs is a
-host URL and an API key. No shell access to the Aleph containers, no archive volume,
-no database. This is the whole point — you can back up a hosted/managed Aleph you
-don't operate.
+**Two ways to run it, identical output:**
+
+- **API mode (default)** — talks to Aleph purely over the HTTP API; all it needs is a
+  host URL and an API key. No shell access, no archive volume, no database — so you can
+  back up a hosted/managed Aleph you don't operate.
+- **Server-side `--direct` mode** — when you *do* run Aleph (or can otherwise reach its
+  PostgreSQL and the archive filesystem), it reads the file tree from the database and
+  copies the original bytes straight off the archive instead of downloading each file
+  over the API. Dramatically faster; it still uses the API for the entity stream. See
+  [Server-side mode](#server-side-mode---direct).
 
 It exists for one scenario: you ingested data into Aleph, **lost the original source
 files**, and want them back out — in their original layout — as a durable archive you
@@ -34,10 +40,11 @@ the backup is a faithful, re-ingestable record.
 Requires Python ≥ 3.11 and [`uv`](https://github.com/astral-sh/uv).
 
 ```bash
+cd aleph-coldbackup
 uv venv && uv pip install -e .
 ```
 
-## Usage
+## Usage (API mode)
 
 ```bash
 export ALEPHCLIENT_HOST=https://your-aleph          # the Aleph base URL
@@ -60,6 +67,40 @@ On completion it prints a one-line summary, e.g.:
 ```
 exported example: files_written=379 bytes=47066373 missing=0 collisions=0 not_walked=0 hash_mismatch=0
 ```
+
+## Server-side mode (`--direct`)
+
+When the tool runs **co-located with Aleph** (host or a container with the archive
+volume mounted, and PostgreSQL reachable), `--direct` is dramatically faster: it reads
+the file tree from PostgreSQL in one query and copies the original bytes straight from
+the servicelayer **`file`** archive, instead of downloading each file over the API.
+
+```bash
+export ALEPHCLIENT_HOST=https://your-aleph     # still needed: entities + collection.json
+export ALEPHCLIENT_API_KEY=...
+export COLDBACKUP_DB_URI=postgresql://user:pass@host/aleph   # read-only role recommended
+uv run aleph-coldbackup export <foreign_id> --out ./backups --direct \
+    --archive-path /data [--workers 8] [--reflink | --hardlink] [--verify-hashes]
+```
+
+- **Output is identical** to API mode (`files/`, `entities.ijson`, `collection.json`,
+  `manifest.json`, `RESTORE.md`).
+- **Still needs an API key** — entities and collection metadata are not in the
+  relational DB, so they come from the API (a single streaming call each).
+- DB DSN comes from `COLDBACKUP_DB_URI` (fallback `ALEPH_DATABASE_URI`), **never** a
+  flag. Access is read-only (`SELECT` only).
+- Archive backend: **`file` only** (v1). Blob layout
+  `<root>/<h0:2>/<h2:4>/<h4:6>/<sha1>/<file>`.
+- Copy modes: default real copy; `--reflink` (CoW where supported, falls back to copy);
+  `--hardlink` (fastest, shares inodes with the live archive — not an independent backup,
+  use for staging only).
+
+### Cross-mode caveats
+
+`--direct` output is byte-identical to API mode for normal collections, with two edge-case exceptions (both preserve all file bytes — neither loses data):
+
+- **In-folder name collisions:** when two files in the same folder sanitize to the same name, one keeps the bare name and the other gets a `-<hash>` suffix. Which file is suffixed can differ between API mode (Elasticsearch result order) and `--direct` (document-id order). A normal crawled directory cannot contain two identically named files in one folder, so this only arises from filename sanitization.
+- **Missing stored filename:** for the rare entity with no `file_name` in its database metadata (e.g. some HTTP-crawled sources), API mode may name the file from the original HTTP `Content-Disposition` header, which is not stored in the database; `--direct` names it by the entity id instead.
 
 ## What it produces
 
@@ -159,17 +200,14 @@ uv run ruff check src tests
 uv run mypy src tests
 
 # live integration + equivalence tests (need a running Aleph + credentials):
-export ALEPHCLIENT_HOST=https://your-aleph
-export ALEPHCLIENT_API_KEY=...
-export ALEPH_EXAMPLE_DIR=/path/to/the/original/source/dir   # ground truth for equivalence
-export ALEPH_EXAMPLE_COLLECTION=example                     # its collection foreign_id
+set -a && source ../.aleph-credentials.env && set +a
 uv run pytest -m integration -s
 ```
 
 The equivalence suite is the strongest check: it exports a known collection and
 asserts the reconstructed tree is byte-for-byte equivalent to the original source
-directory (modulo the known-acceptable differences above) — set `ALEPH_EXAMPLE_DIR`
-to that source directory and `ALEPH_EXAMPLE_COLLECTION` to its `foreign_id`.
+directory (modulo the known-acceptable differences above). Point it at your own
+ground-truth directory with `ALEPH_EXAMPLE_DIR`.
 
 ## Limitations
 

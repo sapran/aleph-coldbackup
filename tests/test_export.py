@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from aleph_coldbackup.export import export_collection, CollectionNotFound
-from tests.conftest import FakeAPI, make_entity
+from aleph_coldbackup.export import export_collection, export_collection_direct, CollectionNotFound
+from tests.conftest import FakeAPI, FakeArchive, make_doc, make_entity
 
 
 def _fetch_ok(url, dest: Path):
@@ -44,3 +44,37 @@ def test_missing_collection_raises(tmp_path):
     with pytest.raises(CollectionNotFound):
         export_collection(api, "nope", tmp_path, fetch=_fetch_ok,
                           generated_at="2026-06-17T00:00:00Z")
+
+
+def test_export_direct_writes_full_bundle(tmp_path):
+    api = FakeAPI(
+        top=[],
+        children={},
+        collection={"id": "1", "foreign_id": "example", "label": "example"},
+        stream=[make_entity("e1", content_hash="h1", file_name="a.txt")],
+    )
+    rows = [
+        make_doc("d1", content_hash=None, file_name="dir"),
+        make_doc("d2", content_hash="h1", file_name="a.txt", parent_id="d1"),
+    ]
+    result = export_collection_direct(
+        api, FakeArchive({"h1": b"A"}), "example", tmp_path,
+        fetch_documents=lambda cid: rows, generated_at="2026-06-18T00:00:00Z",
+    )
+    base = tmp_path / "example"
+    assert (base / "files" / "dir" / "a.txt").read_bytes() == b"A"
+    assert (base / "entities.ijson").exists()
+    assert (base / "collection.json").exists()
+    assert (base / "manifest.json").exists()
+    assert (base / "RESTORE.md").exists()
+    assert result["summary"]["files_written"] == 1
+
+
+def test_export_direct_missing_collection_raises(tmp_path):
+    api = FakeAPI(top=[], children={})
+    with pytest.raises(CollectionNotFound):
+        export_collection_direct(
+            api, FakeArchive({}), "does-not-exist", tmp_path,
+            fetch_documents=lambda cid: [],
+            generated_at="2026-06-18T00:00:00Z",
+        )

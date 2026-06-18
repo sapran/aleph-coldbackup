@@ -1,9 +1,9 @@
 [project]
 name = "aleph-coldbackup"
 version = "0.1.0"
-description = "Export an Aleph investigation into a re-ingestable cold backup (API-only)."
+description = "Export an Aleph investigation into a re-ingestable cold backup (API or direct-backend)."
 requires-python = ">=3.11"
-dependencies = ["alephclient", "requests"]
+dependencies = ["alephclient", "requests", "psycopg[binary]"]
 
 [project.scripts]
 aleph-coldbackup = "aleph_coldbackup.cli:main"
