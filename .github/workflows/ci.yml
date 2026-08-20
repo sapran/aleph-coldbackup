@@ -17,8 +17,9 @@ jobs:
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    # Cloning is all this job needs. Required explicitly: while the repository is
-    # private, checkout cannot read it under the top-level `permissions: {}`.
+    # Cloning is all this job needs. Granted explicitly because the top-level
+    # `permissions: {}` leaves GITHUB_TOKEN with no scopes at all, and checkout
+    # then fails with a 404 on a private repository.
     permissions:
       contents: read
     strategy:
@@ -34,18 +35,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Mirrors the contributor path in CONTRIBUTING.md exactly. `uv pip install`
-      # refuses to run without a virtual environment, and setup-uv does not
-      # create one.
+      # The install path from CONTRIBUTING.md. `uv pip install` refuses to run
+      # without a virtual environment, and setup-uv does not create one.
       - name: Install
         run: |
           uv venv
           uv pip install -e ".[dev]"
 
-      # Integration tests need a live Aleph and are deselected by the `addopts`
-      # in pyproject.toml, so this runs the self-contained suite only.
-      # --no-sync so each step tests exactly what the install step produced;
-      # without it `uv run` re-resolves against uv.lock before every command.
+      # --no-sync on each step so they exercise exactly what the install
+      # produced; without it `uv run` re-resolves against uv.lock every time.
+      # Integration tests need a live Aleph and are already deselected by the
+      # `addopts` in pyproject.toml, so this is the self-contained suite only.
       - name: Tests
         run: uv run --no-sync pytest
 
