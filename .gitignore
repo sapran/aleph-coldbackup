@@ -7,3 +7,12 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Credentials — never commit. README tells users to keep ALEPHCLIENT_API_KEY and
+# COLDBACKUP_DB_URI in an env file; these patterns are what make that advice true.
+.env
+.env.*
+
+# Local editor / OS / agent noise
+.DS_Store
+.claude/
