@@ -12,7 +12,16 @@ dist/
 # COLDBACKUP_DB_URI in an env file; these patterns are what make that advice true.
 .env
 .env.*
+# ...but a values-free template is meant to be committed.
+!.env.example
 
-# Local editor / OS / agent noise
+# Local editor / OS / agent noise. .remember/ holds agent session notes and is
+# otherwise hidden only by an untracked .gitignore inside itself.
 .DS_Store
 .claude/
+.remember/
+
+# Export output. README documents `--out ./backups` run from the repo root, so
+# the default invocation drops original investigation files here. Never commit
+# them: this is the largest accidental-disclosure surface in the project.
+/backups/

@@ -35,8 +35,9 @@ dev = [
     # Capped below 0.16: that release widened ruff's default rule set (isort,
     # pyupgrade, flake8-blind-except and others now fire without being selected),
     # which flags 22 pre-existing violations. Unpinning turns CI red on a ruff
-    # release rather than on a code change. Dependabot will propose the 0.16 bump
-    # as its own reviewable PR — see docs/implementation-notes.md.
+    # release rather than on a code change. Dependabot will not lift this cap --
+    # it is configured lockfile-only -- so raising it is a deliberate change,
+    # done together with the fixes listed in docs/implementation-notes.md.
     "ruff>=0.15.17,<0.16",
     "types-requests",
 ]

@@ -38,19 +38,34 @@ data that only you have:
 ```bash
 export ALEPHCLIENT_HOST=https://your-aleph
 export ALEPHCLIENT_API_KEY=...
-export ALEPH_EXAMPLE_DIR=/path/to/source-tree
+export ALEPH_EXAMPLE_DIR=/path/to/source-tree        # ground truth for the equivalence test
 uv run pytest -m integration -s
 ```
 
-If your change touches the walker, the archive reader, or name allocation, please run
-this against your own Aleph and say so in the pull request. Never paste real host names,
-API keys, or investigation data into an issue or pull request — `.env` and `.env.*` are
-gitignored, keep credentials there.
+**`--direct` mode needs two more variables.** Without them the direct-mode tests
+*skip* rather than fail, so the run still reports success and you can easily believe
+you tested code you did not touch at all:
+
+```bash
+export COLDBACKUP_ARCHIVE_PATH=/path/to/servicelayer/archive   # must be a readable directory
+export COLDBACKUP_DB_URI=postgresql://user:pass@host/aleph     # read-only role recommended
+```
+
+Check the output for `skipped` before claiming a run: `tests/test_direct_integration.py`
+skips when either is unset, and the equivalence suite skips without
+`ALEPH_EXAMPLE_DIR`.
+
+If your change touches the walker, the archive reader (`archive_fs.py`, `directwalk.py`)
+or name allocation, please run this against your own Aleph and say so in the pull
+request — the archive reader is reachable only through `--direct`, so it needs the two
+variables above. Never paste real host names, API keys, or investigation data into an
+issue or pull request — `.env` and `.env.*` are gitignored, keep credentials there.
 
 ## Style and commits
 
 - Match the surrounding code: type annotations throughout, `from __future__ import annotations`
-  at the top of each module, comments only where the logic is not obvious.
+  at the top of every module that declares them, comments only where the logic is not
+  obvious.
 - One logical change per commit, with a [Conventional Commits](https://www.conventionalcommits.org/)
   prefix — `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:` — matching the
   existing history.

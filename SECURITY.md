@@ -12,9 +12,14 @@ reporting: open the repository's
 [Security tab](https://github.com/sapran/aleph-coldbackup/security/advisories/new) and
 file a draft advisory. This keeps the report confidential until a fix is available.
 
-Do not open a public issue for a security problem, and do not include real credentials,
-real host names, or data from a live investigation in a report — a redacted reproduction
-is enough.
+**If that link does not open a reporting form**, private reporting has not been switched
+on yet. In that case open a normal issue containing nothing but a request for a private
+channel — no details, no reproduction, no affected version — and wait to be contacted.
+An empty placeholder issue discloses nothing; a full public report does.
+
+Otherwise, do not open a public issue for a security problem, and never include real
+credentials, real host names, or data from a live investigation in a report — a redacted
+reproduction is enough.
 
 Expect an acknowledgement within a week. This is a small, unfunded project: there is no
 bug bounty, and fixes are best-effort.
