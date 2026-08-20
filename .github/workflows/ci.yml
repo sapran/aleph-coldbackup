@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [develop, main]
 
-# Least privilege by default; no job here needs a token.
+# Deny everything by default; each job grants only what it needs below.
 permissions: {}
 
 concurrency:
@@ -17,6 +17,10 @@ jobs:
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    # Cloning is all this job needs. Required explicitly: while the repository is
+    # private, checkout cannot read it under the top-level `permissions: {}`.
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
