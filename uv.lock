@@ -31,7 +31,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"] },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "requests" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15.17,<0.16" },
     { name = "types-requests", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]

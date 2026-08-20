@@ -34,16 +34,23 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Mirrors the contributor path in CONTRIBUTING.md exactly. `uv pip install`
+      # refuses to run without a virtual environment, and setup-uv does not
+      # create one.
       - name: Install
-        run: uv pip install -e ".[dev]"
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
 
       # Integration tests need a live Aleph and are deselected by the `addopts`
       # in pyproject.toml, so this runs the self-contained suite only.
+      # --no-sync so each step tests exactly what the install step produced;
+      # without it `uv run` re-resolves against uv.lock before every command.
       - name: Tests
-        run: uv run pytest
+        run: uv run --no-sync pytest
 
       - name: Lint
-        run: uv run ruff check src tests
+        run: uv run --no-sync ruff check src tests
 
       - name: Type check
-        run: uv run mypy src tests
+        run: uv run --no-sync mypy src tests
