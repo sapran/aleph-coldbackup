@@ -2,17 +2,50 @@
 name = "aleph-coldbackup"
 version = "0.1.0"
 description = "Export an Aleph investigation into a re-ingestable cold backup (API or direct-backend)."
+readme = "README.md"
+license = "Apache-2.0"
+authors = [{ name = "Vlad Styran" }]
+keywords = ["aleph", "followthemoney", "backup", "archive", "investigation", "osint"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Archiving :: Backup",
+]
 requires-python = ">=3.11"
 dependencies = ["alephclient", "requests", "psycopg[binary]"]
+
+[project.urls]
+Homepage = "https://github.com/sapran/aleph-coldbackup"
+Repository = "https://github.com/sapran/aleph-coldbackup"
+Issues = "https://github.com/sapran/aleph-coldbackup/issues"
 
 [project.scripts]
 aleph-coldbackup = "aleph_coldbackup.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "mypy>=1.8", "ruff>=0.4", "types-requests"]
+dev = [
+    "pytest>=8",
+    "mypy>=1.8",
+    # Capped below 0.16: that release widened ruff's default rule set (isort,
+    # pyupgrade, flake8-blind-except and others now fire without being selected),
+    # which flags 22 pre-existing violations. Unpinning turns CI red on a ruff
+    # release rather than on a code change. Dependabot will not lift this cap --
+    # it is configured lockfile-only -- so raising it is a deliberate change,
+    # done together with the fixes listed in docs/implementation-notes.md.
+    "ruff>=0.15.17,<0.16",
+    "types-requests",
+]
 
 [build-system]
-requires = ["hatchling"]
+# >=1.27 honours the PEP 639 `license` SPDX expression above; older versions
+# silently drop it, publishing the package with no license metadata.
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

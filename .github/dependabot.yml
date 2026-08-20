@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  # Python dependencies, resolved through uv.lock.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Update uv.lock only, never the constraints in pyproject.toml. The default
+    # ("auto") would widen or raise them -- including the deliberate ruff <0.16
+    # cap, which would then admit the release that turns CI red. Constraint
+    # changes stay a human decision.
+    versioning-strategy: "lockfile-only"
+    # Let a freshly published version age before adopting it — a hijacked release
+    # is usually yanked within days.
+    cooldown:
+      default-days: 7
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  # Keeps the commit-SHA pins in .github/workflows current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 5

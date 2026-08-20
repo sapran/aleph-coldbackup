@@ -1,0 +1,121 @@
+name: ci
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+# Deny everything by default; each job grants only what it needs below.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Only supersede runs on a pull request. Cancelling on develop would leave the
+  # superseded commit with no verdict, and a release could be cut from it.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Cloning is all this job needs. Granted explicitly because the top-level
+    # `permissions: {}` leaves GITHUB_TOKEN with no scopes at all, and checkout
+    # then fails with a 404 on a private repository.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # The install path from CONTRIBUTING.md. `uv pip install` refuses to run
+      # without a virtual environment, and setup-uv does not create one.
+      - name: Install
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      # --no-sync so this tests exactly what the install produced; without it
+      # `uv run` re-resolves against uv.lock first. Integration tests need a live
+      # Aleph and are already deselected by the `addopts` in pyproject.toml.
+      - name: Tests
+        run: uv run --no-sync pytest
+
+  # Lint and type check are deliberately off the matrix. mypy reads
+  # `python_version = "3.11"` from pyproject.toml and ruff takes its target from
+  # `requires-python`, so both produce identical results on every interpreter --
+  # running them per-version would burn six extra executions and, worse, imply a
+  # 3.14 type-check that never happens.
+  quality:
+    name: Lint and type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      # uv.lock is committed but the install path above does not read it, so
+      # without this a lockfile that has drifted from pyproject.toml is never
+      # caught -- and Dependabot's uv PRs change nothing else.
+      - name: Lockfile is in sync
+        run: uv lock --check
+
+      # Independent steps, so a lint failure never hides a type error.
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: uv run --no-sync ruff check src tests
+
+      - name: Type check
+        if: ${{ !cancelled() }}
+        run: uv run --no-sync mypy src tests
+
+  # The PEP 639 license expression is the kind of metadata that fails silently:
+  # a build backend that does not understand it simply omits it, and nothing
+  # downstream complains until the package is published without a licence.
+  build:
+    name: Build and check metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: "3.11"
+
+      - name: Build
+        run: uv build
+
+      - name: Wheel declares Apache-2.0 and ships LICENSE
+        run: |
+          set -euo pipefail
+          wheel=$(ls dist/*.whl)
+          unzip -p "$wheel" '*.dist-info/METADATA' | grep -qx 'License-Expression: Apache-2.0'
+          unzip -l "$wheel" | grep -q 'dist-info/licenses/LICENSE'
+          echo "ok: $wheel carries Apache-2.0 metadata and the licence file"
