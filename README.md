@@ -220,3 +220,13 @@ ground-truth directory with `ALEPH_EXAMPLE_DIR`.
   through is reported as `not-walked` rather than silently truncated.
 - Built against Aleph 4.1.x. Upstream Aleph is end-of-life; pin to your deployment's
   version.
+
+## Contributing
+
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for
+the development setup and the checks a PR needs to pass. For security issues, please
+follow [SECURITY.md](SECURITY.md) rather than opening a public issue.
+
+## License
+
+[Apache License 2.0](LICENSE) © 2026 Vlad Styran.
